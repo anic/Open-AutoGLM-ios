@@ -65,9 +65,28 @@ class ModelClient:
             top_p=self.config.top_p,
             frequency_penalty=self.config.frequency_penalty,
             extra_body=self.config.extra_body,
+            stream=True,
         )
 
-        raw_content = response.choices[0].message.content
+        answer_content = ''
+        is_answering = False  # 判断是否结束思考过程并开始回复
+
+        for chunk in response:
+            # 如果chunk.choices为空，则打印usage
+            if not chunk.choices:
+                print("\nUsage:")
+                print(chunk.usage)
+            else:
+                delta = chunk.choices[0].delta
+                # 开始回复
+                if is_answering is False:
+                    print("\n" + "=" * 20 + "完整回复" + "=" * 20 + "\n")
+                    is_answering = True
+                # 打印回复过程
+                print(delta.content, end='', flush=True)
+                answer_content += '' if delta.content is None else delta.content
+        # raw_content = response.choices[0].message.content
+        raw_content = answer_content
 
         # Parse thinking and action from response
         thinking, action = self._parse_response(raw_content)
@@ -85,7 +104,17 @@ class ModelClient:
             Tuple of (thinking, action).
         """
         if "<answer>" not in content:
-            return "", content
+            import re
+            pattern = r'do\(.*\)'
+            result = re.search(pattern, content)
+
+            if result:
+                extracted_content = result.group()
+                print("提取结果：", extracted_content)
+                return content, extracted_content
+            else:
+                print("未找到匹配内容")
+                return "", content
 
         parts = content.split("<answer>", 1)
         thinking = parts[0].replace("<think>", "").replace("</think>", "").strip()
@@ -104,7 +133,7 @@ class MessageBuilder:
 
     @staticmethod
     def create_user_message(
-        text: str, image_base64: str | None = None
+            text: str, image_base64: str | None = None
     ) -> dict[str, Any]:
         """
         Create a user message with optional image.

@@ -7,7 +7,6 @@ from typing import Any, Callable
 
 from phone_agent.actions import ActionHandler
 from phone_agent.actions.handler import do, finish, parse_action
-from phone_agent.adb import get_current_app, get_screenshot
 from phone_agent.config import get_messages, get_system_prompt
 from phone_agent.model import ModelClient, ModelConfig
 from phone_agent.model.client import MessageBuilder
@@ -22,6 +21,7 @@ class AgentConfig:
     lang: str = "cn"
     system_prompt: str | None = None
     verbose: bool = True
+    os: str = "android"
 
     def __post_init__(self):
         if self.system_prompt is None:
@@ -76,10 +76,21 @@ class PhoneAgent:
             device_id=self.agent_config.device_id,
             confirmation_callback=confirmation_callback,
             takeover_callback=takeover_callback,
+            os_type=agent_config.os,
         )
 
         self._context: list[dict[str, Any]] = []
         self._step_count = 0
+
+        if agent_config.os == 'android':
+            from phone_agent.adb import get_current_app, get_screenshot
+            self.get_screenshot = get_screenshot
+            self.get_current_app = get_current_app
+        else:
+            from phone_agent.ios.device import get_current_app, get_screenshot
+            self.get_current_app = get_current_app
+            self.get_screenshot = get_screenshot
+
 
     def run(self, task: str) -> str:
         """
@@ -140,8 +151,8 @@ class PhoneAgent:
         self._step_count += 1
 
         # Capture current screen state
-        screenshot = get_screenshot(self.agent_config.device_id)
-        current_app = get_current_app(self.agent_config.device_id)
+        screenshot = self.get_screenshot(self.agent_config.device_id)
+        current_app = self.get_current_app(self.agent_config.device_id)
 
         # Build messages
         if is_first:

@@ -25,7 +25,8 @@ from openai import OpenAI
 from phone_agent import PhoneAgent
 from phone_agent.adb import ADBConnection, list_devices
 from phone_agent.agent import AgentConfig
-from phone_agent.config.apps import list_supported_apps
+from phone_agent.adb.apps import list_supported_apps
+from phone_agent.ios.connection import IosConnection
 from phone_agent.model import ModelConfig
 
 
@@ -236,8 +237,8 @@ def check_model_api(base_url: str, model_name: str, api_key: str = "EMPTY") -> b
             print("     1. Check your network connection")
             print("     2. Verify the server is responding")
         elif (
-            "Name or service not known" in error_msg
-            or "nodename nor servname" in error_msg
+                "Name or service not known" in error_msg
+                or "nodename nor servname" in error_msg
         ):
             print(f"   Error: Cannot resolve hostname")
             print("   Solution:")
@@ -393,7 +394,10 @@ def handle_device_commands(args) -> bool:
     Returns:
         True if a device command was handled (should exit), False otherwise.
     """
-    conn = ADBConnection()
+    if args.os == 'ios':
+        conn = IosConnection()
+    else:
+        conn = ADBConnection()
 
     # Handle --list-devices
     if args.list_devices:
